@@ -1,6 +1,9 @@
 require('dotenv').config();
 const express = require('express');
 const sql = require('mssql');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+
 const app = express();
 
 app.use(express.json());
@@ -17,30 +20,42 @@ const dbConfig = {
     }
 };
 
-// Route ví dụ: Lấy tất cả các bản ghi từ bảng nào đó
-app.get('/roles', async (req, res) => {
+// Kết nối với SQL Server
+sql.connect(dbConfig, (err) => {
+    if (err) {
+        console.error('Database connection failed: ', err);
+    } else {
+        console.log('Connected to the database');
+    }
+});
+
+// API để đăng nhập
+app.post('/login', async (req, res) => {
+    const { USER_NAME, PASSWORD } = req.body;
+
     try {
-        // Kết nối đến SQL Server
-        let pool = await sql.connect(dbConfig);
-        let result = await pool.request().query('SELECT * FROM tbl_role');
+        // Truy vấn người dùng từ cơ sở dữ liệu
+        const result = await sql.query`SELECT * FROM dbo.tbl_user WHERE USER_NAME = ${USER_NAME} AND Deleted = 0`;
 
-        res.json(result.recordset);
+        if (result.recordset.length > 0) {
+            const user = result.recordset[0];
 
-        // Đóng kết nối sau khi truy vấn xong
-        pool.close();
+            // Kiểm tra mật khẩu nếu mật khẩu lưu ở dạng plaintext
+            const isMatch = PASSWORD === user.PASSWORD;
+            if (isMatch) {
+                // Tạo token
+                const token = jwt.sign({ id: user.ID, role: user.Roleid }, process.env.JWT_SECRET, { expiresIn: '1h' });
+                res.json({ token });
+            } else {
+                res.status(400).json({ message: 'Invalid credentials' });
+            }
+        } else {
+            res.status(400).json({ message: 'Invalid credentials' });
+        }
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Internal server error' });
     }
-});
-
-app.use((req, res, next) => {
-    res.status(404).json({ message: 'Endpoint not found' });
-});
-
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ message: 'Internal server error' });
 });
 
 const port = process.env.PORT || 3000;
