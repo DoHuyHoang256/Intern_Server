@@ -14,7 +14,7 @@ async function login(req, res) {
                 const token = jwt.sign({ id: user.ID, role: user.Roleid }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
                 if (user.Roleid === 2) {
-                    res.json({ token, redirectUrl: '/new' });
+                    res.json({ token, redirectUrl: '/news' });
                 } else {
                     res.status(403).json({ message: 'Access denied' });
                 }
