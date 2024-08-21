@@ -1,15 +1,20 @@
-const sql = require('mssql');
-const { poolPromise } = require('../config/dbConfig');
+const { Pool } = require('pg');
+const { pool } = require('../config/dbConfig');
 
-// Hàm lấy người dùng từ cơ sở dữ liệu theo email
-const getUserByEmail = async (email) => {
+// Hàm lấy thông tin người dùng theo email hoặc tên người dùng
+const getUserByEmailOrUsername = async (login) => {
     try {
-        const pool = await poolPromise;
-        if (!pool) throw new Error('Database connection is not established');
-        const result = await pool.request()
-            .input('Email', sql.VarChar, email)
-            .query('SELECT * FROM dbo.tbl_user WHERE Email = @Email AND Deleted = 0');
-        return result.recordset[0];
+        const client = await pool.connect();
+        try {
+            const result = await client.query(`
+                SELECT * FROM tbl_user 
+                WHERE (email = $1 OR user_name = $1) 
+                AND deleted = false
+            `, [login]);
+            return result.rows[0];
+        } finally {
+            client.release();
+        }
     } catch (err) {
         console.error('Error querying the database: ', err);
         throw err;
@@ -17,5 +22,5 @@ const getUserByEmail = async (email) => {
 };
 
 module.exports = {
-    getUserByEmail
+    getUserByEmailOrUsername
 };
