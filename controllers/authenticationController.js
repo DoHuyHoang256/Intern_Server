@@ -8,11 +8,13 @@ async function login(req, res) {
         const user = await userModel.getUserByEmailOrUsername(login);
 
         if (user) {
-            const isMatch = PASSWORD === user.PASSWORD;
-            if (isMatch) {
-                const token = jwt.sign({ id: user.ID, role: user.Roleid }, process.env.JWT_SECRET, { expiresIn: '1h' });
+            // So sánh mật khẩu người dùng nhập vào với mật khẩu lưu trong cơ sở dữ liệu
+            const isMatch = PASSWORD === user.password;
 
-                if (user.Roleid === 2) {
+            if (isMatch) {
+                const token = jwt.sign({ id: user.id, role: user.roleid }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+                if (user.roleid === 2) {
                     res.json({ token, redirectUrl: '/news' });
                 }
             } else {
